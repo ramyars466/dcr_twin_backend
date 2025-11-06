@@ -1,0 +1,8 @@
+{
+  "name": "DCR-Twin Backend (Python 3.10)",
+  "image": "mcr.microsoft.com/devcontainers/python:0-3.10",
+  "postCreateCommand": "pip install -r requirements.txt || true",
+  "forwardPorts": [8000],
+  "features": {},
+  "remoteUser": "vscode"
+}
