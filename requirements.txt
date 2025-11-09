@@ -12,5 +12,4 @@ matplotlib
 fpdf
 plotly
 fpdf2
-# any other packages your app needs
-
+# (NO pickle5)
