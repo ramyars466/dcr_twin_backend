@@ -7,3 +7,12 @@ scikit-learn
 lightgbm
 joblib
 shap
+streamlit
+matplotlib
+pickle5
+joblib
+fpdf
+plotly
+fpdf2
+# any other packages your app needs
+
