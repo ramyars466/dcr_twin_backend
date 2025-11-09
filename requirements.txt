@@ -9,8 +9,6 @@ joblib
 shap
 streamlit
 matplotlib
-pickle5
-joblib
 fpdf
 plotly
 fpdf2
