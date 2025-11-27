@@ -14,10 +14,7 @@ st.set_page_config(
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
-)git add app.py
-git commit -m "Add debug code to fix LOW RISK issue"
-git push
-
+)
 
 # DEBUG: Add model loading debug at the top
 st.sidebar.markdown("### 🔍 DEBUG INFO")
