@@ -7,13 +7,26 @@ import plotly.graph_objects as go
 import shap
 import matplotlib.pyplot as plt
 import hashlib
+import os  # DEBUG: Added for file checking
 
 st.set_page_config(
     page_title="DCR Twin",
     page_icon="🧠",
     layout="wide",
     initial_sidebar_state="expanded",
-)
+)git add app.py
+git commit -m "Add debug code to fix LOW RISK issue"
+git push
+
+
+# DEBUG: Add model loading debug at the top
+st.sidebar.markdown("### 🔍 DEBUG INFO")
+st.sidebar.write("**Current directory:**", os.getcwd())
+model_path = "lgb_model_v1.pkl"
+st.sidebar.write("**Model file:**", model_path)
+st.sidebar.write("**Model exists:**", os.path.exists(model_path))
+if os.path.exists(model_path):
+    st.sidebar.write("**Model size:**", os.path.getsize(model_path), "bytes")
 
 PAGES = [
     "🏠 Home", "📊 Risk Prediction", "💡 Post-Loan Simulation",
@@ -24,10 +37,14 @@ page = st.sidebar.radio("Navigation", PAGES)
 @st.cache_resource
 def load_model(path="lgb_model_v1.pkl"):
     try:
-        return joblib.load(path)
-    except Exception:
-        st.sidebar.error("Couldn't load ML model!")
+        model = joblib.load(path)
+        st.sidebar.success("✅ Model loaded successfully!")
+        st.sidebar.write("**Model type:**", type(model).__name__)
+        return model
+    except Exception as e:
+        st.sidebar.error(f"❌ Model loading failed: {str(e)}")
         return None
+
 model = load_model()
 def load_explainer(_model):
     try:
@@ -35,6 +52,27 @@ def load_explainer(_model):
     except Exception:
         return None
 explainer = load_explainer(model)
+
+# DEBUG: Test model functionality
+if model is not None and page == "📊 Risk Prediction":
+    st.sidebar.markdown("### 🧪 TEST BUTTON")
+    if st.sidebar.button("🧪 Test HIGH RISK Input"):
+        test_data = pd.DataFrame([{
+            "monthly_income": 20000,  # Low income
+            "loan_amount": 1000000,   # High loan
+            "credit_utilization": 0.9, # High utilization
+            "num_late_payments": 10,   # Many late payments
+            "savings_balance": 0,      # No savings
+            "spending_score": 95,      # High spending
+            "employment_stability": 0.1, # Unstable
+            "age": 22                 # Young
+        }])
+        try:
+            test_pred = model.predict_proba(test_data)[0][1]
+            st.sidebar.success(f"**Test HIGH RISK Prediction: {test_pred:.3f}**")
+            st.sidebar.info("✅ Model works! Should be >0.5 for HIGH risk")
+        except Exception as e:
+            st.sidebar.error(f"**Test failed: {e}**")
 
 def compute_8_scores(row, pd_score, loan_amount):
     return {
@@ -57,7 +95,7 @@ def calculate_emi(P, N, r):
     if r == 0:
         return round(P / N, 2) if N > 0 else 0.0
     r_monthly = r / (12 * 100)
-    emi = (P * r_monthly * (1 + r_monthly)*N) / ((1 + r_monthly)*N - 1)
+    emi = (P * r_monthly * (1 + r_monthly)**N) / ((1 + r_monthly)**N - 1)
     return round(emi, 2)
 
 def get_borrower_live_aa_status(borrower_id, loan_amount, monthly_emi):
@@ -103,7 +141,7 @@ if page == "🏠 Home":
     </div>
     ''', unsafe_allow_html=True)
     st.markdown("""
-- DCR Twin is a next-generation credit risk analytics and loan management platform powered by AI and real-time banking aggregation. Designed for modern lenders, it dynamically creates a digital “twin” for every borrower—combining traditional data with live financial signals to continuously assess repayment risk, simulate future scenarios, and trigger intelligent alerts.
+- DCR Twin is a next-generation credit risk analytics and loan management platform powered by AI and real-time banking aggregation. Designed for modern lenders, it dynamically creates a digital "twin" for every borrower—combining traditional data with live financial signals to continuously assess repayment risk, simulate future scenarios, and trigger intelligent alerts.
 
 - With features like instant Probability of Default prediction, explainable 8-dimension risk scoring, EMI alerting, and actionable scenario simulation, DCR Twin offers a transparent, interactive, and highly accurate (94%) solution for both lenders and borrowers.
 
@@ -112,6 +150,10 @@ if page == "🏠 Home":
     st.markdown("---")
 
 elif page == "📊 Risk Prediction":
+    if model is None:
+        st.error("🚨 Model failed to load! Check sidebar debug info.")
+        st.stop()
+    
     st.title("Borrower Risk Prediction & Dashboard")
     with st.sidebar:
         st.header("Borrower Inputs")
@@ -129,6 +171,7 @@ elif page == "📊 Risk Prediction":
         spending_score = st.number_input("Spending Score (0-100)", 0, 100, 50, step=1)
         employment_stability = st.number_input("Employment Stability", 0.0, 1.0, 0.85, step=0.01)
         age = st.number_input("Age", 18, 100, 30, step=1)
+    
     raw_input = {
         "monthly_income": monthly_income,
         "loan_amount": loan_amount,
@@ -142,6 +185,7 @@ elif page == "📊 Risk Prediction":
     input_df = pd.DataFrame([raw_input])
     st.markdown("#### Borrower Profile Snapshot")
     st.dataframe(input_df, use_container_width=True, hide_index=True)
+    
     def compute_pd_label_local(prob, loan_amount):
         if prob <= 0.0005:
             return "VERY LOW RISK", "#43ba7f", loan_amount, "Full sanction"
@@ -153,46 +197,44 @@ elif page == "📊 Risk Prediction":
             return "HIGH RISK", "#6d7ffb", 0.5*loan_amount, "Sanction 50%"
         else:
             return "VERY HIGH RISK", "#c5192d", 0, "Loan rejected"
+    
     st.markdown("#### Pre-Loan Prediction")
     if st.button("Predict Pre-Loan PD", use_container_width=True):
-        if model is None:
-            st.error("Model not loaded!")
-        else:
-            prob = float(model.predict_proba(input_df)[0][1])
-            label, color, sanctioned_amount, msg = compute_pd_label_local(prob, loan_amount)
-            st.markdown(
-                f"<div style='background:{color};padding:15px 0 12px 0;border-radius:12px;color:white;font-weight:600;font-size:18px;text-align:center;'><span style='font-size:1.3em;'>{label}</span><br>PD Score: <b>{prob:.3f}</b><br>Model Accuracy: <b>94%</b></div>",
-                unsafe_allow_html=True)
-            st.write(f"💰 {msg} | Amount: ₹{sanctioned_amount:,.2f}")
-            orig_scores = compute_8_scores(input_df.iloc[0], prob, loan_amount)
-            cats = list(orig_scores.keys())
-            vals = list(orig_scores.values())
-            vals_closed = vals + [vals[0]]
-            cats_closed = cats + [cats[0]]
-            fig_radar = go.Figure(data=go.Scatterpolar(r=vals_closed, theta=cats_closed, fill='toself', name="Pre-Loan"))
-            fig_radar.update_layout(
-                paper_bgcolor="#f9fafc", plot_bgcolor="#dde6f6",
-                polar=dict(bgcolor="#f9fafc", radialaxis=dict(visible=True)),
-                font=dict(color="#10394d"),
-                showlegend=False, title="Pre-Loan Risk Dimensions (8D Radar)")
-            st.plotly_chart(fig_radar, use_container_width=True)
-            # Save history and borrower profile, only update borrower_profiles if ID valid
-            entry = {
-                "timestamp": datetime.datetime.now().isoformat(),
-                "id": borrower_id,
-                "loan_amount": loan_amount,
-                "emi_per_month": emi,
-                "years_to_pay": years_to_pay,
-                "annual_roi": annual_roi,
-                "profile": raw_input,
-                "pd": prob,
-                "label": label,
-                "sanctioned_amount": sanctioned_amount,
-            }
-            st.session_state.history.append(entry)
-            if borrower_id is not None and borrower_id.strip() != "":
-                st.session_state.borrower_profiles[borrower_id] = entry
-            st.success(f"Prediction saved for {borrower_id}")
+        prob = float(model.predict_proba(input_df)[0][1])
+        label, color, sanctioned_amount, msg = compute_pd_label_local(prob, loan_amount)
+        st.markdown(
+            f"<div style='background:{color};padding:15px 0 12px 0;border-radius:12px;color:white;font-weight:600;font-size:18px;text-align:center;'><span style='font-size:1.3em;'>{label}</span><br>PD Score: <b>{prob:.3f}</b><br>Model Accuracy: <b>94%</b></div>",
+            unsafe_allow_html=True)
+        st.write(f"💰 {msg} | Amount: ₹{sanctioned_amount:,.2f}")
+        orig_scores = compute_8_scores(input_df.iloc[0], prob, loan_amount)
+        cats = list(orig_scores.keys())
+        vals = list(orig_scores.values())
+        vals_closed = vals + [vals[0]]
+        cats_closed = cats + [cats[0]]
+        fig_radar = go.Figure(data=go.Scatterpolar(r=vals_closed, theta=cats_closed, fill='toself', name="Pre-Loan"))
+        fig_radar.update_layout(
+            paper_bgcolor="#f9fafc", plot_bgcolor="#dde6f6",
+            polar=dict(bgcolor="#f9fafc", radialaxis=dict(visible=True)),
+            font=dict(color="#10394d"),
+            showlegend=False, title="Pre-Loan Risk Dimensions (8D Radar)")
+        st.plotly_chart(fig_radar, use_container_width=True)
+        # Save history and borrower profile, only update borrower_profiles if ID valid
+        entry = {
+            "timestamp": datetime.datetime.now().isoformat(),
+            "id": borrower_id,
+            "loan_amount": loan_amount,
+            "emi_per_month": emi,
+            "years_to_pay": years_to_pay,
+            "annual_roi": annual_roi,
+            "profile": raw_input,
+            "pd": prob,
+            "label": label,
+            "sanctioned_amount": sanctioned_amount,
+        }
+        st.session_state.history.append(entry)
+        if borrower_id is not None and borrower_id.strip() != "":
+            st.session_state.borrower_profiles[borrower_id] = entry
+        st.success(f"Prediction saved for {borrower_id}")
 
 elif page == "💡 Post-Loan Simulation":
     st.title("Post-Loan (Dynamic) Simulation with Real-Time EMI Alerts")
@@ -237,9 +279,9 @@ elif page == "💡 Post-Loan Simulation":
         simulate_salary_drop = st.checkbox("Simulate Income Halt (salary loss)")
         simulate_spend_spike = st.checkbox("Simulate Abnormal Spending")
         updated_monthly_income = st.number_input("Updated Monthly Income (₹)", 0.0, 2000000.0,
-                                                status_api['recent_salary'], step=1000.0)
+                                                 status_api['recent_salary'], step=1000.0)
         updated_employment_stability = st.number_input("Updated Emp. Stability (0-1)", 0.0, 1.0,
-                                                      0.1 if status_api['jobless'] else 0.85, step=0.01)
+                                                       0.1 if status_api['jobless'] else 0.85, step=0.01)
 
     loan_amount = prev_loan_amount
     emi = prev_emi
@@ -257,6 +299,7 @@ elif page == "💡 Post-Loan Simulation":
     }])
     st.markdown("#### Post-Loan Borrower Profile (Sim API Data)")
     st.dataframe(df_dyn, use_container_width=True, hide_index=True)
+    
     def compute_postloan_label(prob):
         if prob <= 0.0005:
             return "VERY LOW RISK", "#43ba7f", "Loan Remains Safe ✅"
@@ -268,6 +311,7 @@ elif page == "💡 Post-Loan Simulation":
             return "HIGH RISK", "#6d7ffb", "Loan at High Risk ⚠"
         else:
             return "VERY HIGH RISK", "#c5192d", "Loan at Very High Risk ❌"
+    
     if st.button("Compute Post-Loan/Dynamic PD", use_container_width=True):
         if model is None:
             st.error("Model not loaded!")
@@ -302,7 +346,6 @@ elif page == "💡 Post-Loan Simulation":
             })
             st.success("Dynamic prediction saved to history!")
 
-
 elif page == "📝 History & Export":
     st.title("Prediction History ★ Downloadable Export")
     if st.session_state.history:
@@ -320,29 +363,24 @@ elif page == "ℹ About":
         """
 Reinventing Credit—One Digital Twin at a Time
 
-- DCR Twin is not just another credit tool. It’s a vision for the future of lending—where advanced AI, real-time financial signals, and borrower empowerment come together to shape a safer, more transparent, and more intelligent credit ecosystem.
+- DCR Twin is not just another credit tool. It's a vision for the future of lending—where advanced AI, real-time financial signals, and borrower empowerment come together to shape a safer, more transparent, and more intelligent credit ecosystem.
 
 Key Features
 - Instant, explainable credit risk analytics—no black boxes, just clarity.
-
 - Live EMI and payment alerts—proactive, not reactive.
-
 - Real-time borrower simulation—see "what-if" before it happens.
-
 - Compliance-ready history and audit export—peace of mind for teams and regulators.
-
 - Beautiful, interactive banking experience—because design matters in finance, too.
 
 Our Mission
 - To give every lender a smarter, safer, more human way to manage risk—and every borrower a fair shot, with instant transparency and actionable guidance.
 
 Behind the Project
-- Conceptualized and built by passionate engineers at Sir MVIT Bangalore, DCR Twin fuses expertise in artificial intelligence, fintech, and UX design. With a foundation in real-world banking needs and academic rigor, it’s crafted to serve the next decade of digital credit innovation.
+- Conceptualized and built by passionate engineers at Sir MVIT Bangalore, DCR Twin fuses expertise in artificial intelligence, fintech, and UX design. With a foundation in real-world banking needs and academic rigor, it's crafted to serve the next decade of digital credit innovation.
 
 Contact
-
 Ramya RS 
-📧 ramyars066@gmail.com
+📧 [ramyars066@gmail.com](mailto:ramyars066@gmail.com)
 📞 +91 7204085650
 
 DCR Twin - Powered by AI - Trusted by Innovators
