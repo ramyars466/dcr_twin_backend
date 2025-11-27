@@ -16,14 +16,7 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# DEBUG: Add model loading debug at the top
-st.sidebar.markdown("### 🔍 DEBUG INFO")
-st.sidebar.write("**Current directory:**", os.getcwd())
-model_path = "lgb_model_v1.pkl"
-st.sidebar.write("**Model file:**", model_path)
-st.sidebar.write("**Model exists:**", os.path.exists(model_path))
-if os.path.exists(model_path):
-    st.sidebar.write("**Model size:**", os.path.getsize(model_path), "bytes")
+
 
 PAGES = [
     "🏠 Home", "📊 Risk Prediction", "💡 Post-Loan Simulation",
@@ -383,4 +376,4 @@ Ramya RS
 DCR Twin - Powered by AI - Trusted by Innovators
         """
     )
-    st.caption("DCR Twin: Now with Account Aggregator, India 2025 🇮🇳")
+    
