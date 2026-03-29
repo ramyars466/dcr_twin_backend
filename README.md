@@ -26,7 +26,7 @@ Built for modern lenders, fintech innovators, and financial analysts, DCR Twin b
 
 ---
 
-## 🖥️ App Pages
+## 🖥️ Web Pages
 
 ### 🏠 Home
 Introductory landing page explaining the platform's vision, key capabilities, and model accuracy.
@@ -52,6 +52,4 @@ Simulates post-disbursement borrower behavior using a mock Account Aggregator (A
 ### ℹ️ About
 Project description, mission statement, and contact information.
 
----
 
-## 🏗️ Architecture
